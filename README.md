@@ -77,19 +77,18 @@ sudo cp ./lib/libdeko3dd.a $DEVKITPRO/libnx/lib/
 4. Download this melonDS repository and prepare:
 ```bash
 cd ~/
-git clone https://github.com/RSDuck/melonDS 
+git clone https://github.com/RSDuck/melonDS
 cd melonDS
 git submodule update --init --recursive
-mkdir build && cd build
 ```
 5. Compile:
 ```bash
-cmake .. -DENABLE_OGLRENDERER=OFF -DBUILD_QT_SDL=OFF -DCMAKE_TOOLCHAIN_FILE=../cmake/Toolchain-cross-Switch.cmake
-make -j$(nproc --all)
+cmake --preset Switch-Release
+cmake --build --preset Switch-Release
 ```
 
-You can also use the build script (build_script.sh) to build the .nro file after a first build. It just wipe the build directory for a clean build, then execute the commands above.
-   
+The output nro will found in `build/Switch-Release/melonDS.nro`
+
 ## TODO LIST
  + RetroAchievements support (currently developing)
  * (Fix) DSi emulation
