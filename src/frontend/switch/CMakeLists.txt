@@ -61,42 +61,69 @@ SET(SOURCES_SWITCH
     ../../../external/rcheevos/src/rurl/url.c
 )
 
-include(${CMAKE_SOURCE_DIR}/cmake/Toolchain-cross-Switch.cmake)
-
-add_executable(melonDS.elf ${SOURCES_SWITCH})
-target_compile_definitions(melonDS.elf PRIVATE RC_CLIENT_SUPPORTS_HASH)
+add_executable(melonDS ${SOURCES_SWITCH})
+target_compile_definitions(melonDS PRIVATE RC_CLIENT_SUPPORTS_HASH)
 if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
     if (ENABLE_LTO)
-        target_link_libraries(melonDS.elf nxd deko3dd core nx)
+        target_link_libraries(melonDS nxd deko3dd core)
     else()
-        target_link_libraries(melonDS.elf core deko3dd nxd)
+        target_link_libraries(melonDS core deko3dd nxd)
     endif()
 else()
     if (ENABLE_LTO)
-        target_link_libraries(melonDS.elf core nx deko3d)
+        target_link_libraries(melonDS core nx deko3d)
     else()
-        target_link_libraries(melonDS.elf core deko3d nx)
+        target_link_libraries(melonDS core deko3d nx)
     endif()
 endif()
 
-target_link_libraries(melonDS.elf curl z)
+target_link_libraries(melonDS curl z)
 
-target_include_directories(melonDS.elf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(melonDS.elf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_include_directories(melonDS.elf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-target_include_directories(melonDS.elf PUBLIC "${CMAKE_SOURCE_DIR}/external/rcheevos/include")
+target_include_directories(melonDS PUBLIC ${DEVKITPRO}/portlibs/switch/include/)
 
+target_include_directories(melonDS PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(melonDS PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_include_directories(melonDS PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+target_include_directories(melonDS PUBLIC "${CMAKE_SOURCE_DIR}/external/rcheevos/include")
 
-add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/control.nacp
-                   COMMAND ${NACPTOOL} --create "melonDS switch fast alpha" "Arisotura, RSDuck, Hydr8gon, Jpe230, Gheovgos" "release 7" ${CMAKE_BINARY_DIR}/control.nacp)
+# create romfs
+dkp_add_asset_target(melonDS_romfs ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 
-make_directory(${CMAKE_BINARY_DIR}/romfs/shaders)
-configure_file(${CMAKE_SOURCE_DIR}/icon/melon_128x128.png ${CMAKE_BINARY_DIR}/romfs/melon_128x128.png COPYONLY)
+# copy icon
+configure_file(${CMAKE_SOURCE_DIR}/icon/melon_128x128.png ${CMAKE_CURRENT_BINARY_DIR}/romfs/melon_128x128.png COPYONLY)
 
-compile_shader(vert Default_vsh)
-compile_shader(frag Default_fsh)
+# setup nacp
+nx_generate_nacp(melonDS.nacp
+    NAME "melonDS switch fast alpha"
+    AUTHOR "Arisotura, RSDuck, Hydr8gon, Jpe230, Gheovgos"
+    VERSION "release 7"
+)
 
-compile_shader(vert ../../shaders/FullscreenQuad_vsh)
+# create nro (final binary)
+nx_create_nro(melonDS
+    OUTPUT ${CMAKE_BINARY_DIR}/melonDS.nro
+    ICON ${CMAKE_SOURCE_DIR}/icon/melon_switch.jpg
+    NACP melonDS.nacp
+    ROMFS melonDS_romfs
+)
+
+# creates shaders whilst defining stuff
+function(compile_shader_instance stage relativepath newname defines)
+	file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated_shaders)
+
+	foreach(var IN ITEMS ${defines})
+		set(${var} 1)
+	endforeach()
+
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${relativepath}.glsl ${CMAKE_CURRENT_BINARY_DIR}/generated_shaders/${newname}.glsl)
+
+	nx_add_shader_program(${newname} ${CMAKE_CURRENT_BINARY_DIR}/generated_shaders/${newname}.glsl ${stage})
+endfunction()
+
+nx_add_shader_program(Default_vsh Default_vsh.glsl vert)
+nx_add_shader_program(Default_fsh Default_fsh.glsl frag)
+nx_add_shader_program(FullscreenQuad_vsh ../../shaders/FullscreenQuad_vsh.glsl vert)
+
 compile_shader_instance(frag ../../shaders/ComposeBGOBJ_fsh ComposeBGOBJ_fsh "ComposeBGOBJ")
 compile_shader_instance(frag ../../shaders/ComposeBGOBJ_fsh ComposeBGOBJDirectBitmapOnly_fsh "ShowBitmap")
 compile_shader_instance(frag ../../shaders/ComposeBGOBJ_fsh ComposeBGOBJShowBitmap_fsh "ShowBitmap;ComposeBGOBJ")
@@ -153,9 +180,66 @@ compile_shader_instance(comp ../../shaders/GPU3D_Comp ClearIndirectWorkCount "Cl
 compile_shader_instance(comp ../../shaders/GPU3D_Comp CalculateWorkOffsets "CalculateWorkOffsets")
 compile_shader_instance(comp ../../shaders/GPU3D_Comp SortWork "SortWork")
 
-message("${shader_paths}")
-add_custom_target(melonDS.nro ALL
-    ${ELF2NRO} ${CMAKE_BINARY_DIR}/melonDS.elf ${CMAKE_BINARY_DIR}/melonDS.nro --icon=${CMAKE_SOURCE_DIR}/icon/melon_switch.jpg --nacp=${CMAKE_BINARY_DIR}/control.nacp --romfsdir=${CMAKE_BINARY_DIR}/romfs
-    DEPENDS melonDS.elf
-    ${CMAKE_BINARY_DIR}/control.nacp
-    "${shader_paths}")
+# install shaders to romfs
+dkp_install_assets(melonDS_romfs
+    DESTINATION shaders
+    TARGETS
+        Default_fsh
+        Default_vsh
+        FullscreenQuad_vsh
+        ComposeBGOBJ_fsh
+        ComposeBGOBJDirectBitmapOnly_fsh
+        ComposeBGOBJShowBitmap_fsh
+        BGText4bpp_fsh
+        BGText4bppMosaic_fsh
+        BGText8bpp_fsh
+        BGText8bppMosaic_fsh
+        BGAffine_fsh
+        BGAffineMosaic_fsh
+        BGExtendedBitmap8bpp_fsh
+        BGExtendedBitmap8bppMosaic_fsh
+        BGExtendedBitmapDirect_fsh
+        BGExtendedBitmapDirectMosaic_fsh
+        BGExtendedMixed_fsh
+        BGExtendedMixedMosaic_fsh
+        OBJRegular_vsh
+        OBJAffine_vsh
+        OBJ4bpp_fsh
+        OBJ8bpp_fsh
+        OBJBitmap_fsh
+        OBJWindow4bpp_fsh
+        OBJWindow8bpp_fsh
+        InterpXSpansZBuffer
+        InterpXSpansWBuffer
+        BinCombined
+        DepthBlendWBuffer
+        DepthBlendZBuffer
+        RasteriseNoTextureWBuffer
+        RasteriseNoTextureWBufferToon
+        RasteriseNoTextureWBufferHighlight
+        RasteriseUseTextureDecalWBuffer
+        RasteriseUseTextureModulateWBuffer
+        RasteriseUseTextureToonWBuffer
+        RasteriseUseTextureHighlightWBuffer
+        RasteriseShadowMaskWBuffer
+        RasteriseNoTextureZBuffer
+        RasteriseNoTextureZBufferToon
+        RasteriseNoTextureZBufferHighlight
+        RasteriseUseTextureDecalZBuffer
+        RasteriseUseTextureModulateZBuffer
+        RasteriseUseTextureToonZBuffer
+        RasteriseUseTextureHighlightZBuffer
+        RasteriseShadowMaskZBuffer
+        FinalPass
+        FinalPassEdge
+        FinalPassFog
+        FinalPassEdgeFog
+        FinalPassAA
+        FinalPassEdgeAA
+        FinalPassFogAA
+        FinalPassEdgeFogAA
+        ClearCoarseBinMask
+        ClearIndirectWorkCount
+        CalculateWorkOffsets
+        SortWork
+)

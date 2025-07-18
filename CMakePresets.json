@@ -1,0 +1,51 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "core",
+            "displayName": "core",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "Switch",
+            "displayName": "Switch",
+            "hidden": true,
+            "inherits":["core"],
+            "toolchainFile": "$env{DEVKITPRO}/cmake/Switch.cmake",
+            "cacheVariables": {
+                "ENABLE_OGLRENDERER": false,
+                "BUILD_QT_SDL": false
+            }
+        },
+        {
+            "name": "Switch-Release",
+            "displayName": "Switch-Release",
+            "inherits":["Switch"],
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "Switch-Debug",
+            "displayName": "Switch-Debug",
+            "inherits":["Switch"],
+            "cacheVariables": { "CMAKE_BUILD_TYPE":"Debug" }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Switch-Release",
+            "configurePreset": "Switch-Release",
+            "jobs": 16
+        },
+        {
+            "name": "Switch-Debug",
+            "configurePreset": "Switch-Debug",
+            "jobs": 16
+        }
+    ]
+}
