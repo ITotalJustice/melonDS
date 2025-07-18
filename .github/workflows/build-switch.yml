@@ -7,28 +7,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         preset: [Switch-Release]
     runs-on: ${{ matrix.os }}
     container: devkitpro/devkita64:latest
 
     steps:
     - uses: actions/checkout@v3
-
-    # fetch latest cmake
-    - uses: lukka/get-cmake@latest
+      with:
+        submodules: recursive
 
     - name: Configure CMake
-      run: |
-        cmake --preset ${{ matrix.preset }}
+      run: cmake --preset ${{ matrix.preset }}
 
     - name: Build
-      run: cmake --build --preset ${{ matrix.preset }} --parallel 4
+      run: cmake --build --preset ${{ matrix.preset }} --parallel 1
 
     # only deploy on push
     - name: Deploy
       if: ${{ github.event_name != 'pull_request' && github.event.action != 'unassigned' }}
       uses: actions/upload-artifact@master
       with:
-        name: melodDS-${{ matrix.preset }}
+        name: melondDS-${{ matrix.preset }}
         path: build/Switch-${{ matrix.preset }}/*.nro
